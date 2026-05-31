@@ -55,4 +55,4 @@ services:
       - key: ADMIN_EMAIL
         value: admin@docqueue.in
       - key: ADMIN_PASSWORD
-        generateValue: true
+        value: Admin@1234

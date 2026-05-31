@@ -36,7 +36,10 @@ public class AdminSeeder implements ApplicationRunner {
         String adminPassword = System.getenv().getOrDefault("ADMIN_PASSWORD", "Admin@1234");
 
         if (userRepository.existsByEmail(adminEmail)) {
-            log.debug("Admin account already exists: {}", adminEmail);
+            log.debug("Admin account already exists: {}, force updating password.", adminEmail);
+            User admin = userRepository.findByEmail(adminEmail).get();
+            admin.setPassword(passwordEncoder.encode(adminPassword));
+            userRepository.save(admin);
             return;
         }
 
