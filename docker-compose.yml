@@ -1,7 +1,5 @@
-version: '3.9'
-
 # ============================================================
-# Doctor Queue SaaS — Docker Compose
+# DocQueue SaaS — Docker Compose
 # Services: app, mysql, redis, frontend, prometheus, grafana
 # ============================================================
 
