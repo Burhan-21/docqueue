@@ -1,0 +1,56 @@
+databases:
+  - name: docqueue-db
+    databaseName: docqueue
+    user: docqueue
+    plan: free
+
+services:
+  - type: redis
+    name: docqueue-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+
+  - type: web
+    name: docqueue-backend
+    env: docker
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: docqueue-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: docqueue-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: docqueue-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: docqueue-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: docqueue-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: docqueue-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: docqueue-redis
+          property: port
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@docqueue.in
+      - key: ADMIN_PASSWORD
+        generateValue: true

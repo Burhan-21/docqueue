@@ -1,14 +1,12 @@
 -- V1__initial_schema.sql
 -- Doctor Queue SaaS - Initial Database Schema
--- MySQL 8.0+
-
-SET FOREIGN_KEY_CHECKS = 0;
+-- PostgreSQL Migration
 
 -- =========================================
 -- CLINICS
 -- =========================================
-CREATE TABLE IF NOT EXISTS clinics (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE clinics (
+    id          BIGSERIAL PRIMARY KEY,
     name        VARCHAR(200) NOT NULL,
     address     TEXT,
     phone       VARCHAR(20),
@@ -16,70 +14,72 @@ CREATE TABLE IF NOT EXISTS clinics (
     city        VARCHAR(100),
     state       VARCHAR(100),
     is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
-    deleted_at  DATETIME     NULL,
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_clinic_active (is_active),
-    INDEX idx_clinic_city (city)
-) ENGINE=InnoDB;
+    deleted_at  TIMESTAMP    NULL,
+    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_clinic_active ON clinics(is_active);
+CREATE INDEX idx_clinic_city ON clinics(city);
 
 -- =========================================
 -- ROLES
 -- =========================================
-CREATE TABLE IF NOT EXISTS roles (
-    id   BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE roles (
+    id   BIGSERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE
-) ENGINE=InnoDB;
+);
 
-INSERT IGNORE INTO roles (name) VALUES ('PATIENT'), ('DOCTOR'), ('ADMIN');
+INSERT INTO roles (name) VALUES ('PATIENT'), ('DOCTOR'), ('ADMIN') ON CONFLICT (name) DO NOTHING;
 
 -- =========================================
 -- USERS
 -- =========================================
-CREATE TABLE IF NOT EXISTS users (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE users (
+    id         BIGSERIAL PRIMARY KEY,
     name       VARCHAR(100)  NOT NULL,
     email      VARCHAR(150)  NOT NULL UNIQUE,
     phone      VARCHAR(20),
     password   VARCHAR(255)  NOT NULL,
     is_active  BOOLEAN       NOT NULL DEFAULT TRUE,
-    deleted_at DATETIME      NULL,
-    created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user_email (email),
-    INDEX idx_user_phone (phone),
-    INDEX idx_user_active (is_active)
-) ENGINE=InnoDB;
+    deleted_at TIMESTAMP     NULL,
+    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_email ON users(email);
+CREATE INDEX idx_user_phone ON users(phone);
+CREATE INDEX idx_user_active ON users(is_active);
 
 -- =========================================
 -- USER_ROLES (Junction)
 -- =========================================
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE user_roles (
     user_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
     PRIMARY KEY (user_id, role_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (role_id) REFERENCES roles(id)
-) ENGINE=InnoDB;
+);
 
 -- =========================================
 -- PATIENTS
 -- =========================================
-CREATE TABLE IF NOT EXISTS patients (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE patients (
+    id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT      NOT NULL UNIQUE,
     dob         DATE,
-    gender      ENUM('MALE','FEMALE','OTHER'),
+    gender      VARCHAR(10) CHECK (gender IN ('MALE','FEMALE','OTHER')),
     blood_group VARCHAR(10),
-    deleted_at  DATETIME    NULL,
+    deleted_at  TIMESTAMP   NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+);
 
 -- =========================================
 -- DOCTORS
 -- =========================================
-CREATE TABLE IF NOT EXISTS doctors (
-    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE doctors (
+    id               BIGSERIAL PRIMARY KEY,
     user_id          BIGINT       NOT NULL UNIQUE,
     clinic_id        BIGINT       NOT NULL,
     specialization   VARCHAR(100),
@@ -87,114 +87,118 @@ CREATE TABLE IF NOT EXISTS doctors (
     avg_consult_min  INT          NOT NULL DEFAULT 15,
     bio              TEXT,
     consultation_fee DECIMAL(10,2),
-    deleted_at       DATETIME     NULL,
+    deleted_at       TIMESTAMP    NULL,
     FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
-    FOREIGN KEY (clinic_id) REFERENCES clinics(id),
-    INDEX idx_doctor_clinic (clinic_id),
-    INDEX idx_doctor_spec   (specialization),
-    FULLTEXT INDEX ft_doctor_spec (specialization)
-) ENGINE=InnoDB;
+    FOREIGN KEY (clinic_id) REFERENCES clinics(id)
+);
+
+CREATE INDEX idx_doctor_clinic ON doctors(clinic_id);
+CREATE INDEX idx_doctor_spec ON doctors(specialization);
+CREATE INDEX ft_doctor_spec ON doctors USING GIN (to_tsvector('english', specialization));
 
 -- =========================================
 -- DOCTOR AVAILABILITY
 -- =========================================
-CREATE TABLE IF NOT EXISTS doctor_availability (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE doctor_availability (
+    id          BIGSERIAL PRIMARY KEY,
     doctor_id   BIGINT NOT NULL,
-    day_of_week ENUM('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY') NOT NULL,
+    day_of_week VARCHAR(15) NOT NULL CHECK (day_of_week IN ('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY')),
     start_time  TIME   NOT NULL,
     end_time    TIME   NOT NULL,
     max_slots   INT    NOT NULL DEFAULT 20,
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
     FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
-    UNIQUE KEY uq_doc_day (doctor_id, day_of_week),
-    INDEX idx_avail_doctor (doctor_id)
-) ENGINE=InnoDB;
+    CONSTRAINT uq_doc_day UNIQUE (doctor_id, day_of_week)
+);
+
+CREATE INDEX idx_avail_doctor ON doctor_availability(doctor_id);
 
 -- =========================================
 -- APPOINTMENTS
 -- =========================================
-CREATE TABLE IF NOT EXISTS appointments (
-    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE appointments (
+    id             BIGSERIAL PRIMARY KEY,
     patient_id     BIGINT       NOT NULL,
     doctor_id      BIGINT       NOT NULL,
     clinic_id      BIGINT       NOT NULL,
-    scheduled_at   DATETIME     NOT NULL,
-    status         ENUM('PENDING','CONFIRMED','COMPLETED','CANCELLED','NO_SHOW') NOT NULL DEFAULT 'PENDING',
+    scheduled_at   TIMESTAMP    NOT NULL,
+    status         VARCHAR(20)  NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','CONFIRMED','COMPLETED','CANCELLED','NO_SHOW')),
     token_number   INT          NOT NULL,
     notes          TEXT,
-    cancelled_by   ENUM('PATIENT','DOCTOR','ADMIN') NULL,
+    cancelled_by   VARCHAR(20)  NULL CHECK (cancelled_by IN ('PATIENT','DOCTOR','ADMIN')),
     cancel_reason  VARCHAR(500) NULL,
-    deleted_at     DATETIME     NULL,
-    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at     TIMESTAMP    NULL,
+    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(id),
     FOREIGN KEY (doctor_id)  REFERENCES doctors(id),
     FOREIGN KEY (clinic_id)  REFERENCES clinics(id),
-    INDEX idx_appt_doctor_date (doctor_id, scheduled_at),
-    INDEX idx_appt_patient     (patient_id),
-    INDEX idx_appt_status      (status),
-    INDEX idx_appt_scheduled   (scheduled_at),
-    UNIQUE KEY uq_token_doctor_date (doctor_id, scheduled_at, token_number)
-) ENGINE=InnoDB;
+    CONSTRAINT uq_token_doctor_date UNIQUE (doctor_id, scheduled_at, token_number)
+);
+
+CREATE INDEX idx_appt_doctor_date ON appointments(doctor_id, scheduled_at);
+CREATE INDEX idx_appt_patient ON appointments(patient_id);
+CREATE INDEX idx_appt_status ON appointments(status);
+CREATE INDEX idx_appt_scheduled ON appointments(scheduled_at);
 
 -- =========================================
 -- QUEUE ENTRIES
 -- =========================================
-CREATE TABLE IF NOT EXISTS queue_entries (
-    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE queue_entries (
+    id             BIGSERIAL PRIMARY KEY,
     appointment_id BIGINT NOT NULL UNIQUE,
     doctor_id      BIGINT NOT NULL,
     clinic_id      BIGINT NOT NULL,
     queue_position INT    NOT NULL,
-    status         ENUM('WAITING','IN_PROGRESS','COMPLETED','SKIPPED','CANCELLED') NOT NULL DEFAULT 'WAITING',
+    status         VARCHAR(20) NOT NULL DEFAULT 'WAITING' CHECK (status IN ('WAITING','IN_PROGRESS','COMPLETED','SKIPPED','CANCELLED')),
     estimated_wait INT    NULL,
-    entered_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    called_at      DATETIME NULL,
-    completed_at   DATETIME NULL,
+    entered_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    called_at      TIMESTAMP NULL,
+    completed_at   TIMESTAMP NULL,
     FOREIGN KEY (appointment_id) REFERENCES appointments(id),
     FOREIGN KEY (doctor_id)      REFERENCES doctors(id),
-    FOREIGN KEY (clinic_id)      REFERENCES clinics(id),
-    INDEX idx_queue_doctor_status (doctor_id, status),
-    INDEX idx_queue_position      (doctor_id, queue_position),
-    INDEX idx_queue_entered       (entered_at)
-) ENGINE=InnoDB;
+    FOREIGN KEY (clinic_id)      REFERENCES clinics(id)
+);
+
+CREATE INDEX idx_queue_doctor_status ON queue_entries(doctor_id, status);
+CREATE INDEX idx_queue_position ON queue_entries(doctor_id, queue_position);
+CREATE INDEX idx_queue_entered ON queue_entries(entered_at);
 
 -- =========================================
 -- NOTIFICATIONS
 -- =========================================
-CREATE TABLE IF NOT EXISTS notifications (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE notifications (
+    id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT      NOT NULL,
-    type       ENUM('SMS','EMAIL')  NOT NULL,
-    event      ENUM('BOOKING_CONFIRMED','REMINDER_30MIN','QUEUE_UPDATE','CANCELLED','RESCHEDULED','QUEUE_DELAY') NOT NULL,
-    payload    JSON,
+    type       VARCHAR(10) NOT NULL CHECK (type IN ('SMS','EMAIL')),
+    event      VARCHAR(30) NOT NULL CHECK (event IN ('BOOKING_CONFIRMED','REMINDER_30MIN','QUEUE_UPDATE','CANCELLED','RESCHEDULED','QUEUE_DELAY')),
+    payload    JSONB,
     sent       BOOLEAN     NOT NULL DEFAULT FALSE,
-    sent_at    DATETIME    NULL,
+    sent_at    TIMESTAMP   NULL,
     error_msg  TEXT        NULL,
-    created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    INDEX idx_notif_user    (user_id),
-    INDEX idx_notif_sent    (sent),
-    INDEX idx_notif_event   (event)
-) ENGINE=InnoDB;
+    created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_notif_user ON notifications(user_id);
+CREATE INDEX idx_notif_sent ON notifications(sent);
+CREATE INDEX idx_notif_event ON notifications(event);
 
 -- =========================================
 -- AUDIT LOGS
 -- =========================================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE audit_logs (
+    id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT       NULL,
     action     VARCHAR(100) NOT NULL,
     entity     VARCHAR(100) NOT NULL,
     entity_id  BIGINT       NULL,
-    old_value  JSON         NULL,
-    new_value  JSON         NULL,
+    old_value  JSONB        NULL,
+    new_value  JSONB        NULL,
     ip_address VARCHAR(50)  NULL,
-    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_audit_user   (user_id),
-    INDEX idx_audit_entity (entity, entity_id),
-    INDEX idx_audit_date   (created_at)
-) ENGINE=InnoDB;
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-SET FOREIGN_KEY_CHECKS = 1;
+CREATE INDEX idx_audit_user ON audit_logs(user_id);
+CREATE INDEX idx_audit_entity ON audit_logs(entity, entity_id);
+CREATE INDEX idx_audit_date ON audit_logs(created_at);

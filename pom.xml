@@ -69,17 +69,17 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
-        <!-- ===== MySQL ===== -->
+        <!-- ===== PostgreSQL ===== -->
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
         <!-- ===== Flyway DB Migrations ===== -->
         <dependency>
             <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
 
         <!-- ===== JWT ===== -->

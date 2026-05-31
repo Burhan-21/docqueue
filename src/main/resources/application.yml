@@ -5,12 +5,12 @@ spring:
   profiles:
     active: dev
 
-  # ===== MySQL =====
+  # ===== PostgreSQL =====
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true}
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:docqueue}}
     username: ${DB_USER:docqueue}
-    password: ${DB_PASS:docqueue}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    password: ${DB_PASS:secret}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
@@ -18,7 +18,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         default_batch_fetch_size: 20
 

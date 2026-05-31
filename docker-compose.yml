@@ -16,7 +16,7 @@ services:
       - "8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_URL: jdbc:mysql://mysql:3306/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true
+      DB_URL: jdbc:postgresql://postgres:5432/docqueue
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       REDIS_HOST: redis
@@ -35,7 +35,7 @@ services:
       MAIL_PASS: ${MAIL_PASS}
       FRONTEND_URL: ${FRONTEND_URL}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_started
@@ -65,24 +65,23 @@ services:
     networks:
       - docqueue-net
 
-  # ===== MySQL 8.0 =====
-  mysql:
-    image: mysql:8.0
-    container_name: docqueue-mysql
+  # ===== PostgreSQL 15 =====
+  postgres:
+    image: postgres:15-alpine
+    container_name: docqueue-postgres
     environment:
-      MYSQL_DATABASE: docqueue
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3307:3306"
+      - "5433:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASS}"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - docqueue-net
@@ -134,7 +133,7 @@ services:
       - docqueue-net
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
   redis_data:
     driver: local
