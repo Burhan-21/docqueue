@@ -105,13 +105,18 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:https://yourdomain.com}")
+    private String frontendUrl;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "${FRONTEND_URL:https://yourdomain.com}"
+                "https://*.vercel.app",
+                "https://*.onrender.com",
+                frontendUrl
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
