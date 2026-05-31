@@ -1,0 +1,36 @@
+# ============================================================
+# Doctor Queue SaaS — .gitignore
+# ============================================================
+
+# Maven build output
+target/
+*.class
+*.jar
+
+# Environment secrets — NEVER commit
+.env
+*.env.local
+
+# Frontend — build artifacts & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (local dev)
+mysql_data/
+redis_data/

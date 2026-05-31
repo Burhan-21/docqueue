@@ -1,0 +1,54 @@
+# ===== Local Development Configuration Profile =====
+# Active when running spring.profiles.active=local
+# Targets the infrastructure running via docker-compose on mapped host ports.
+
+spring:
+  # ===== MySQL (Exposed on 3307 in Docker Compose) =====
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3307/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:docqueue}
+    password: ${DB_PASS:docqueue}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  # ===== Redis (Exposed on 6379 in Docker Compose) =====
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASS:}
+      timeout: 2000ms
+
+  # ===== Cache =====
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+
+  # ===== Email (SMTP) =====
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+logging:
+  level:
+    com.docqueue: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG

@@ -1,0 +1,146 @@
+version: '3.9'
+
+# ============================================================
+# Doctor Queue SaaS — Docker Compose
+# Services: app, mysql, redis, frontend, prometheus, grafana
+# ============================================================
+
+services:
+
+  # ===== Spring Boot Application =====
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docqueue-app:latest
+    container_name: docqueue-app
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRY: 900000
+      JWT_REFRESH_EXPIRY: 604800000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@docqueue.in}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@1234}
+      TWILIO_SID: ${TWILIO_SID}
+      TWILIO_TOKEN: ${TWILIO_TOKEN}
+      TWILIO_FROM: ${TWILIO_FROM}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASS: ${MAIL_PASS}
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - docqueue-net
+
+  # ===== React Frontend (Nginx Server) =====
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: docqueue-frontend:latest
+    container_name: docqueue-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - docqueue-net
+
+  # ===== MySQL 8.0 =====
+  mysql:
+    image: mysql:8.0
+    container_name: docqueue-mysql
+    environment:
+      MYSQL_DATABASE: docqueue
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASS}"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - docqueue-net
+
+  # ===== Redis 7 =====
+  redis:
+    image: redis:7-alpine
+    container_name: docqueue-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - docqueue-net
+
+  # ===== Prometheus =====
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: docqueue-prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - docqueue-net
+
+  # ===== Grafana =====
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: docqueue-grafana
+    volumes:
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3001:3000"  # Grafana UI — visit http://localhost:3001
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS:-admin}
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - docqueue-net
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  docqueue-net:
+    driver: bridge

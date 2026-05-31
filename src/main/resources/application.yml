@@ -1,0 +1,131 @@
+spring:
+  application:
+    name: doctor-queue-saas
+
+  profiles:
+    active: dev
+
+  # ===== MySQL =====
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:docqueue}
+    password: ${DB_PASS:docqueue}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        default_batch_fetch_size: 20
+
+  # ===== Flyway =====
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # ===== Redis =====
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASS:}
+      timeout: 2000ms
+
+  # ===== Cache =====
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10 minutes default
+
+  # ===== Email =====
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  # ===== Async & Scheduling =====
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 20
+        queue-capacity: 100
+      thread-name-prefix: async-
+    scheduling:
+      pool:
+        size: 5
+
+# ===== JWT =====
+# WARNING: The default secret is for local dev ONLY.
+# In production, set JWT_SECRET to a secure base64-encoded 256-bit key:
+#   openssl rand -base64 64
+jwt:
+  secret: ${JWT_SECRET:c2VjdXJlLXN1cGVyLXNlY3JldC1rZXktZm9yLWRldi1vbmx5LW1pbi0yNTYtYml0cw==}
+  access-expiry-ms: ${JWT_ACCESS_EXPIRY:900000}       # 15 minutes
+  refresh-expiry-ms: ${JWT_REFRESH_EXPIRY:604800000}  # 7 days
+
+# ===== Twilio =====
+twilio:
+  account-sid: ${TWILIO_SID:}
+  auth-token: ${TWILIO_TOKEN:}
+  from-number: ${TWILIO_FROM:}
+
+# ===== Actuator =====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    mail:
+      enabled: false  # Disable mail health check — SMTP not required for app functionality
+
+# ===== OpenAPI / Swagger =====
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  info:
+    title: Doctor Queue SaaS API
+    version: v1.0.0
+    description: Production-grade Doctor Appointment & Queue Management REST API
+
+# ===== Logging =====
+logging:
+  level:
+    com.docqueue: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ===== Extra Security Settings =====
+security:
+  require-https: ${REQUIRE_HTTPS:false}
+
+recaptcha:
+  secret: ${RECAPTCHA_SECRET:6LeIxAcTAAAAAGG-vFI1TnFTxWfnC0CFU9onvZ17}
+
+# ===== Admin Seed Account =====
+admin:
+  email: ${ADMIN_EMAIL:admin@docqueue.in}
+  password: ${ADMIN_PASSWORD:Admin@1234}
+
