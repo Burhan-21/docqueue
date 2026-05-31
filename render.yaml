@@ -3,12 +3,14 @@ databases:
     databaseName: docqueue
     user: docqueue
     plan: free
+    ipAllowList: []
 
 services:
   - type: redis
     name: docqueue-redis
     plan: free
     maxmemoryPolicy: noeviction
+    ipAllowList: []
 
   - type: web
     name: docqueue-backend
