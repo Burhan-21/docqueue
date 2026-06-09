@@ -76,7 +76,7 @@ public class JwtService {
     public boolean isTokenValid(String token) {
         try {
             Claims claims = parseClaims(token);
-            if (isBlacklisted(claims.getId() != null ? claims.getId() : token)) return false;
+            if (isBlacklisted(hashToken(token))) return false;
             return !claims.getExpiration().before(new Date());
         } catch (JwtException | IllegalArgumentException ex) {
             log.warn("JWT validation failed: {}", ex.getMessage());
@@ -104,7 +104,7 @@ public class JwtService {
             long  ttlMillis  = claims.getExpiration().getTime() - System.currentTimeMillis();
             if (ttlMillis > 0) {
                 redisTemplate.opsForValue()
-                        .set(BLACKLIST_PREFIX + token.substring(token.length() - 16),
+                        .set(BLACKLIST_PREFIX + hashToken(token),
                              "revoked",
                              ttlMillis,
                              TimeUnit.MILLISECONDS);
@@ -117,6 +117,24 @@ public class JwtService {
     private boolean isBlacklisted(String key) {
         return Boolean.TRUE.equals(
                 redisTemplate.hasKey(BLACKLIST_PREFIX + key));
+    }
+
+    private String hashToken(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder(2 * encodedhash.length);
+            for (byte b : encodedhash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash token", e);
+        }
     }
 
     private Claims parseClaims(String token) {

@@ -29,6 +29,8 @@ public class QueueService {
 
     private final QueueEntryRepository  queueEntryRepository;
     private final QueueBroadcastService broadcastService;
+    private final com.docqueue.doctor.repository.DoctorRepository doctorRepository;
+    private final com.docqueue.appointment.repository.AppointmentRepository appointmentRepository;
 
     /**
      * Add a newly booked appointment to the queue.
@@ -66,7 +68,8 @@ public class QueueService {
      */
     @Transactional
     @CacheEvict(value = "queue", key = "'doctor:' + #doctorId")
-    public void callNext(Long doctorId) {
+    public void callNext(Long doctorId, org.springframework.security.core.Authentication auth) {
+        validateDoctorOwnership(doctorId, auth);
         // Complete any currently IN_PROGRESS
         queueEntryRepository.findByDoctorIdAndStatus(doctorId, QueueStatus.IN_PROGRESS)
                 .ifPresent(current -> {
@@ -103,7 +106,8 @@ public class QueueService {
      */
     @Transactional
     @CacheEvict(value = "queue", key = "'doctor:' + #doctorId")
-    public void skipPatient(Long appointmentId, Long doctorId) {
+    public void skipPatient(Long appointmentId, Long doctorId, org.springframework.security.core.Authentication auth) {
+        validateDoctorOwnership(doctorId, auth);
         QueueEntry entry = queueEntryRepository.findByAppointmentId(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue entry not found"));
 
@@ -155,12 +159,31 @@ public class QueueService {
      * Get a patient's specific queue position.
      */
     @Transactional(readOnly = true)
-    public QueueEntryDto getQueueEntryForAppointment(Long appointmentId) {
+    public QueueEntryDto getQueueEntryForAppointment(Long appointmentId, org.springframework.security.core.Authentication auth) {
+        validatePatientOwnership(appointmentId, auth);
         return toDto(queueEntryRepository.findByAppointmentId(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue entry not found")));
     }
 
     // ===== Internal =====
+
+    private void validateDoctorOwnership(Long doctorId, org.springframework.security.core.Authentication auth) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) return;
+        com.docqueue.doctor.entity.Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", doctorId));
+        if (!doctor.getUser().getEmail().equals(auth.getName())) {
+            throw new com.docqueue.common.exception.UnauthorizedException("You do not have permission to modify this queue.");
+        }
+    }
+
+    private void validatePatientOwnership(Long appointmentId, org.springframework.security.core.Authentication auth) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) return;
+        com.docqueue.appointment.entity.Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment", appointmentId));
+        if (!appointment.getPatient().getUser().getEmail().equals(auth.getName())) {
+            throw new com.docqueue.common.exception.UnauthorizedException("You do not have permission to view this queue position.");
+        }
+    }
 
     /**
      * Recalculate estimated wait time for all WAITING entries.

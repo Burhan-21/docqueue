@@ -58,7 +58,8 @@ public class AuthControllerTest {
 
         @Bean
         public RateLimitFilter rateLimitFilter() {
-            return new RateLimitFilter() {
+            org.springframework.data.redis.core.StringRedisTemplate rt = org.mockito.Mockito.mock(org.springframework.data.redis.core.StringRedisTemplate.class);
+            return new RateLimitFilter(rt) {
                 @Override
                 protected void doFilterInternal(
                         jakarta.servlet.http.HttpServletRequest r, 
@@ -76,6 +77,7 @@ public class AuthControllerTest {
         request.setName("John Doe");
         request.setEmail("john@example.com");
         request.setPassword("Password@123");
+
 
         AuthResponse response = AuthResponse.builder()
                 .otpRequired(true)

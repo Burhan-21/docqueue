@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { queueApi } from '../../api/api'
@@ -11,7 +11,7 @@ export default function QueueTracker() {
   const [wsConnected, setWsConnected] = useState(false)
   const [liveData,    setLiveData]    = useState(null)
   const wsConnectedRef = useRef(false)
-  const doctorIdRef    = useRef(null)
+  const [doctorId, setDoctorId] = useState(null)
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['queueEntry', appointmentId],
@@ -21,12 +21,9 @@ export default function QueueTracker() {
 
   // Stabilize doctorId — only set it once when first resolved to prevent
   // the topic string from changing on every re-render and causing reconnect loops
-  useEffect(() => {
-    if (entry?.doctorId && !doctorIdRef.current) {
-      doctorIdRef.current = entry.doctorId
-    }
-  }, [entry])
-  const doctorId = doctorIdRef.current
+  if (entry?.doctorId && !doctorId) {
+    setDoctorId(entry.doctorId)
+  }
 
   // WebSocket subscription for live updates
   const handleWsMessage = useCallback((msg) => {

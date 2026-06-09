@@ -9,7 +9,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:docqueue}}
     username: ${DB_USER:docqueue}
-    password: ${DB_PASS:secret}
+    password: ${DB_PASS:docqueue}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -73,7 +73,7 @@ spring:
 # In production, set JWT_SECRET to a secure base64-encoded 256-bit key:
 #   openssl rand -base64 64
 jwt:
-  secret: ${JWT_SECRET:c2VjdXJlLXN1cGVyLXNlY3JldC1rZXktZm9yLWRldi1vbmx5LW1pbi0yNTYtYml0cw==}
+  secret: ${JWT_SECRET}
   access-expiry-ms: ${JWT_ACCESS_EXPIRY:900000}       # 15 minutes
   refresh-expiry-ms: ${JWT_REFRESH_EXPIRY:604800000}  # 7 days
 
@@ -122,10 +122,14 @@ security:
   require-https: ${REQUIRE_HTTPS:false}
 
 recaptcha:
-  secret: ${RECAPTCHA_SECRET:6LeIxAcTAAAAAGG-vFI1TnFTxWfnC0CFU9onvZ17}
+  secret: ${RECAPTCHA_SECRET}
 
 # ===== Admin Seed Account =====
 admin:
   email: ${ADMIN_EMAIL:admin@docqueue.in}
-  password: ${ADMIN_PASSWORD:Admin@1234}
+  password: ${ADMIN_PASSWORD}
+
+# ===== OpenAI Integration =====
+openai:
+  api-key: ${OPENAI_API_KEY}
 

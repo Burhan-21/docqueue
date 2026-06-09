@@ -24,6 +24,11 @@ export default function Login() {
       if (response.otpRequired) {
         toast.success(response.message || 'OTP sent to email. Please verify.')
         setOtpStep(true)
+      } else {
+        toast.success(`Welcome back, ${response.name}! 👋`)
+        if (response.role === 'DOCTOR') navigate('/doctor')
+        else if (response.role === 'ADMIN') navigate('/admin')
+        else navigate('/dashboard')
       }
     } catch (err) {
       toast.error(err.response?.data?.error ?? 'Login failed')
@@ -108,6 +113,11 @@ export default function Login() {
                     onChange={handleChange} placeholder="••••••••"
                     className="input pl-10" autoComplete="current-password"
                   />
+                </div>
+                <div className="flex justify-end mt-1.5">
+                  <Link to="/forgot-password" className="text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors">
+                    Forgot password?
+                  </Link>
                 </div>
               </div>
 

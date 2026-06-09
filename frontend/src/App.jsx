@@ -2,8 +2,10 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 
 // Auth pages
-import Login    from './pages/auth/Login'
-import Register from './pages/auth/Register'
+import Login          from './pages/auth/Login'
+import Register       from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword  from './pages/auth/ResetPassword'
 
 // Patient pages
 import PatientDashboard   from './pages/patient/PatientDashboard'
@@ -23,15 +25,19 @@ import ManageClinics   from './pages/admin/ManageClinics'
 
 // Layout
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import AiAssistant from './components/AiAssistant'
 
 export default function App() {
   const { user } = useAuth()
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Public */}
-      <Route path="/login"    element={user ? <Navigate to="/" /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+      <Route path="/login"           element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/register"        element={user ? <Navigate to="/" /> : <Register />} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/" /> : <ForgotPassword />} />
+      <Route path="/reset-password"  element={user ? <Navigate to="/" /> : <ResetPassword />} />
       
       {/* Root redirect based on role */}
       <Route path="/"         element={<RoleDashboard />} />
@@ -59,7 +65,11 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      </Routes>
+      
+      {/* Global AI Assistant for Patients */}
+      {user?.role === 'PATIENT' && <AiAssistant />}
+    </>
   )
 }
 

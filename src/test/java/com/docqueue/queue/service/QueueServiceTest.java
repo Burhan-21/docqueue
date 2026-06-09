@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -34,12 +37,16 @@ public class QueueServiceTest {
     private Doctor doctor;
     private Clinic clinic;
     private Appointment appointment;
+    private Authentication mockAuth;
 
     @BeforeEach
     public void setUp() {
         clinic = Clinic.builder().id(1L).name("Test Clinic").build();
         doctor = Doctor.builder().id(2L).avgConsultMin(15).clinic(clinic).build();
         appointment = Appointment.builder().id(3L).doctor(doctor).clinic(clinic).tokenNumber(1).build();
+        
+        mockAuth = mock(Authentication.class);
+        lenient().when(mockAuth.getAuthorities()).thenAnswer(invocation -> List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
     }
 
     @Test
@@ -91,7 +98,7 @@ public class QueueServiceTest {
         activeQueue.add(nextWaiting); // now promoted
         when(queueEntryRepository.findActiveQueueByDoctor(2L)).thenReturn(activeQueue);
 
-        queueService.callNext(2L);
+        queueService.callNext(2L, mockAuth);
 
         assertEquals(QueueStatus.COMPLETED, currentInProgress.getStatus());
         assertNotNull(currentInProgress.getCompletedAt());
@@ -119,7 +126,7 @@ public class QueueServiceTest {
         when(queueEntryRepository.findByDoctorIdAndStatusOrderByQueuePositionAsc(2L, QueueStatus.WAITING))
                 .thenReturn(new ArrayList<>());
 
-        queueService.skipPatient(3L, 2L);
+        queueService.skipPatient(3L, 2L, mockAuth);
 
         assertEquals(QueueStatus.SKIPPED, waitingEntry.getStatus());
         verify(queueEntryRepository).save(waitingEntry);

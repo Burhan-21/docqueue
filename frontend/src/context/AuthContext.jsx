@@ -12,7 +12,15 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const { data } = await authApi.login({ email, password })
-    return data.data // Will contain { otpRequired: true, message: "..." }
+    const payload = data.data
+    if (!payload.otpRequired) {
+      localStorage.setItem('accessToken',  payload.accessToken)
+      localStorage.setItem('refreshToken', payload.refreshToken)
+      const userInfo = { id: payload.userId, name: payload.name, role: payload.role, email }
+      localStorage.setItem('user', JSON.stringify(userInfo))
+      setUser(userInfo)
+    }
+    return payload // Will contain { otpRequired: true/false, message: "..." }
   }, [])
 
   const register = useCallback(async (formData) => {

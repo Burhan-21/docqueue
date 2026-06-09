@@ -37,9 +37,10 @@ public class QueueController {
     @PreAuthorize("hasRole('PATIENT')")
     @Operation(summary = "Get patient's current queue position")
     public ResponseEntity<ApiResponse<QueueEntryDto>> getPosition(
-            @PathVariable Long appointmentId) {
+            @PathVariable Long appointmentId,
+            Authentication auth) {
         return ResponseEntity.ok(
-                ApiResponse.success(queueService.getQueueEntryForAppointment(appointmentId)));
+                ApiResponse.success(queueService.getQueueEntryForAppointment(appointmentId, auth)));
     }
 
     @PostMapping("/next/{doctorId}")
@@ -48,7 +49,7 @@ public class QueueController {
     public ResponseEntity<ApiResponse<Void>> callNext(
             @PathVariable Long doctorId,
             Authentication auth) {
-        queueService.callNext(doctorId);
+        queueService.callNext(doctorId, auth);
         return ResponseEntity.ok(ApiResponse.success("Next patient called", null));
     }
 
@@ -57,8 +58,9 @@ public class QueueController {
     @Operation(summary = "Skip a patient in the queue")
     public ResponseEntity<ApiResponse<Void>> skip(
             @PathVariable Long appointmentId,
-            @RequestParam Long doctorId) {
-        queueService.skipPatient(appointmentId, doctorId);
+            @RequestParam Long doctorId,
+            Authentication auth) {
+        queueService.skipPatient(appointmentId, doctorId, auth);
         return ResponseEntity.ok(ApiResponse.success("Patient skipped", null));
     }
 }

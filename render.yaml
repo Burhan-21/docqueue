@@ -55,4 +55,10 @@ services:
       - key: ADMIN_EMAIL
         value: admin@docqueue.in
       - key: ADMIN_PASSWORD
-        value: Admin@1234
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: RECAPTCHA_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

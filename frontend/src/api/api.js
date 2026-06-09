@@ -2,7 +2,7 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 })
@@ -23,7 +23,11 @@ api.interceptors.response.use(
       toast.error('Network error. Check your connection.')
       return Promise.reject(err)
     }
-    if (response.status === 401) {
+    if (response.status === 429) {
+      toast.error('Too many requests. Please slow down.', { id: 'rate-limit' })
+      return Promise.reject(err)
+    }
+    if (response.status === 401 && !err.config.url.includes('/auth/login')) {
       // Try refresh
       const refreshToken = localStorage.getItem('refreshToken')
       if (refreshToken && !err.config._retry) {
@@ -51,11 +55,13 @@ export default api
 
 // ===== Auth =====
 export const authApi = {
-  login:     (data) => api.post('/auth/login', data),
-  register:  (data) => api.post('/auth/register', data),
-  logout:    ()     => api.post('/auth/logout'),
-  sendOtp:   (data) => api.post('/auth/otp/send', data),
-  verifyOtp: (data) => api.post('/auth/otp/verify', data),
+  login:          (data) => api.post('/auth/login', data),
+  register:       (data) => api.post('/auth/register', data),
+  logout:         ()     => api.post('/auth/logout'),
+  sendOtp:        (data) => api.post('/auth/otp/send', data),
+  verifyOtp:      (data) => api.post('/auth/otp/verify', data),
+  forgotPassword: (data) => api.post('/auth/password/forgot', data),
+  resetPassword:  (data) => api.post('/auth/password/reset', data),
 }
 
 // ===== Doctors =====
@@ -105,4 +111,9 @@ export const patientApi = {
 // ===== Analytics =====
 export const analyticsApi = {
   getClinicSummary: (clinicId) => api.get(`/analytics/clinic/${clinicId}/summary`),
+}
+
+// ===== AI Assistant =====
+export const aiApi = {
+  chat: (query) => api.post('/ai/chat', { query }),
 }

@@ -36,9 +36,15 @@ public class AdminSeeder implements ApplicationRunner {
         String adminPassword = System.getenv().getOrDefault("ADMIN_PASSWORD", "Admin@1234");
 
         if (userRepository.existsByEmail(adminEmail)) {
-            log.debug("Admin account already exists: {}, force updating password.", adminEmail);
+            log.debug("Admin account already exists: {}, force updating password, role, and active status.", adminEmail);
             User admin = userRepository.findByEmail(adminEmail).get();
             admin.setPassword(passwordEncoder.encode(adminPassword));
+            admin.setActive(true);
+            
+            Role adminRole = roleRepository.findByName("ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("ADMIN role not seeded by Flyway"));
+            admin.getRoles().add(adminRole);
+            
             userRepository.save(admin);
             return;
         }

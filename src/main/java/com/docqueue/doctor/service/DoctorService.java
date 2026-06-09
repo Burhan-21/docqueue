@@ -104,8 +104,15 @@ public class DoctorService {
 
     @Transactional
     public List<AvailabilitySlotDto> setAvailability(Long doctorId,
-                                                      List<AvailabilitySlotDto> slots) {
+                                                      List<AvailabilitySlotDto> slots,
+                                                      org.springframework.security.core.Authentication auth) {
         Doctor doctor = findDoctorById(doctorId);
+
+        if (!auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            if (!doctor.getUser().getEmail().equals(auth.getName())) {
+                throw new com.docqueue.common.exception.UnauthorizedException("You do not have permission to modify this doctor's availability.");
+            }
+        }
 
         for (AvailabilitySlotDto dto : slots) {
             if (dto.getEndTime().isBefore(dto.getStartTime()) ||

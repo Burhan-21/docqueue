@@ -102,6 +102,7 @@ public class AppointmentService {
     public AppointmentResponse cancel(Long id, String reason,
                                       CancelledBy cancelledBy, Authentication auth) {
         Appointment appointment = findById(id);
+        validateAppointmentOwnership(appointment, auth);
         if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
             throw new BusinessException("Cannot cancel a completed appointment.");
         }
@@ -126,6 +127,7 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponse reschedule(Long id, RescheduleRequest request, Authentication auth) {
         Appointment appointment = findById(id);
+        validateAppointmentOwnership(appointment, auth);
         if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
                 appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new BusinessException("Cannot reschedule a " + appointment.getStatus() + " appointment.");
@@ -165,6 +167,24 @@ public class AppointmentService {
     }
 
     // ===== Helpers =====
+
+    private void validateAppointmentOwnership(Appointment appointment, Authentication auth) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return;
+        }
+
+        String userEmail = auth.getName();
+        boolean isPatient = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+        boolean isDoctor = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"));
+
+        if (isPatient && !appointment.getPatient().getUser().getEmail().equals(userEmail)) {
+            throw new UnauthorizedException("You do not have permission to access this appointment.");
+        }
+        
+        if (isDoctor && !appointment.getDoctor().getUser().getEmail().equals(userEmail)) {
+            throw new UnauthorizedException("You do not have permission to access this appointment.");
+        }
+    }
 
     private void validateScheduledTime(LocalDateTime scheduled) {
         if (scheduled.isBefore(LocalDateTime.now().plusMinutes(30))) {

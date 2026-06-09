@@ -82,9 +82,10 @@ public class DoctorController {
     @Operation(summary = "Set doctor's weekly availability schedule")
     public ResponseEntity<ApiResponse<List<AvailabilitySlotDto>>> setAvailability(
             @PathVariable Long id,
-            @Valid @RequestBody List<AvailabilitySlotDto> slots) {
+            @Valid @RequestBody List<AvailabilitySlotDto> slots,
+            org.springframework.security.core.Authentication auth) {
         return ResponseEntity.ok(ApiResponse.success(
-                "Availability updated", doctorService.setAvailability(id, slots)));
+                "Availability updated", doctorService.setAvailability(id, slots, auth)));
     }
 
     // ===== Admin: Doctor CRUD =====

@@ -71,4 +71,19 @@ public class AuthController {
         authService.logout(authHeader);
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
     }
+    @PostMapping("/password/forgot")
+    @Operation(summary = "Request a password reset link/token")
+    public ResponseEntity<ApiResponse<AuthResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        AuthResponse response = authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(response.getMessage(), response));
+    }
+
+    @PostMapping("/password/reset")
+    @Operation(summary = "Reset password using a token")
+    public ResponseEntity<ApiResponse<AuthResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        AuthResponse response = authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(response.getMessage(), response));
+    }
 }

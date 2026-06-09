@@ -1,13 +1,12 @@
 package com.docqueue.common.ratelimit;
 
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -16,28 +15,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * IP-based rate limiting filter using Bucket4j token bucket algorithm.
+ * Distributed IP-based rate limiting filter using Redis.
  *
  * Rules:
  * - Auth endpoints:        5 requests / minute  (brute-force protection)
+ * - AI endpoints:          5 requests / minute  (cost protection)
  * - Booking endpoints:     10 requests / minute (spam prevention)
+ * - Doctor Search:         15 requests / minute (anti-scraping)
  * - Other API endpoints:   60 requests / minute (general throttle)
- *
- * Buckets are stored in a ConcurrentHashMap per IP.
- * Production upgrade: use Bucket4j + Redis for distributed rate limiting.
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    // IP → Bucket map (in-memory; replace with Redis for multi-instance)
-    private final Map<String, Bucket> authBuckets    = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> bookingBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> generalBuckets = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redisTemplate;
 
     @Override
     protected void doFilterInternal(
@@ -49,35 +43,50 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String ip  = resolveClientIp(request);
         String uri = request.getRequestURI();
 
-        Bucket bucket;
+        String type;
+        int limit;
 
         if (uri.startsWith("/api/v1/auth/login") || uri.startsWith("/api/v1/auth/register")) {
-            bucket = authBuckets.computeIfAbsent(ip, k -> buildBucket(5, Duration.ofMinutes(1)));
+            type = "auth";
+            limit = 5;
+        } else if (uri.startsWith("/api/v1/ai")) {
+            type = "ai";
+            limit = 5;
+        } else if (uri.startsWith("/api/v1/doctors") && "GET".equals(request.getMethod())) {
+            type = "search";
+            limit = 15;
         } else if (uri.startsWith("/api/v1/appointments") && "POST".equals(request.getMethod())) {
-            bucket = bookingBuckets.computeIfAbsent(ip, k -> buildBucket(10, Duration.ofMinutes(1)));
+            type = "booking";
+            limit = 10;
         } else {
-            bucket = generalBuckets.computeIfAbsent(ip, k -> buildBucket(60, Duration.ofMinutes(1)));
+            type = "general";
+            limit = 60;
         }
 
-        if (bucket.tryConsume(1)) {
+        if (isAllowed(type, ip, limit)) {
             chain.doFilter(request, response);
         } else {
-            log.warn("Rate limit exceeded for IP: {} on {}", ip, uri);
+            log.warn("Rate limit exceeded for IP: {} on {} (Type: {}, Limit: {})", ip, uri, type, limit);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("""
-                {"success":false,"error":"Too many requests. Please slow down and try again."}
-                """);
+            response.getWriter().write(
+                "{\"success\":false,\"error\":\"Too many requests. Please slow down and try again.\"}"
+            );
         }
     }
 
-    private Bucket buildBucket(int capacity, Duration period) {
-        Bandwidth limit = Bandwidth.classic(capacity, Refill.greedy(capacity, period));
-        return Bucket.builder().addLimit(limit).build();
+    private boolean isAllowed(String type, String ip, int limit) {
+        String key = "ratelimit:" + type + ":" + ip;
+        Long current = redisTemplate.opsForValue().increment(key);
+        
+        if (current != null && current == 1) {
+            redisTemplate.expire(key, Duration.ofMinutes(1));
+        }
+        
+        return current != null && current <= limit;
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        // Respect Cloudflare / Nginx X-Forwarded-For
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank()) {
             return xForwardedFor.split(",")[0].trim();

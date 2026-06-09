@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -51,6 +52,9 @@ public class AppointmentControllerTest {
     @MockBean
     private UserDetailsServiceImpl userDetailsService;
 
+    @MockBean
+    private StringRedisTemplate stringRedisTemplate;
+
     @TestConfiguration
     static class TestConfig {
         @Bean
@@ -67,8 +71,8 @@ public class AppointmentControllerTest {
         }
 
         @Bean
-        public RateLimitFilter rateLimitFilter() {
-            return new RateLimitFilter() {
+        public RateLimitFilter rateLimitFilter(StringRedisTemplate redisTemplate) {
+            return new RateLimitFilter(redisTemplate) {
                 @Override
                 protected void doFilterInternal(
                         jakarta.servlet.http.HttpServletRequest r, 

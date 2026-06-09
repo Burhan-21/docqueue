@@ -44,8 +44,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
-        log.warn("Unauthorized access attempt: {}", ex.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex, jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Unauthorized access attempt: {} | URI: {} | IP: {}", ex.getMessage(), request.getRequestURI(), resolveClientIp(request));
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ex.getMessage()));
     }
@@ -84,14 +84,15 @@ public class GlobalExceptionHandler {
     // ===== Security Exceptions =====
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex, jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Access denied: {} | URI: {} | IP: {}", ex.getMessage(), request.getRequestURI(), resolveClientIp(request));
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Access denied. Insufficient permissions."));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex, jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Bad credentials attempt | URI: {} | IP: {}", request.getRequestURI(), resolveClientIp(request));
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("Invalid email or password."));
     }
@@ -109,7 +110,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(JwtException.class)
-    public ResponseEntity<ApiResponse<Void>> handleJwt(JwtException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleJwt(JwtException ex, jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Invalid JWT token | URI: {} | IP: {}", request.getRequestURI(), resolveClientIp(request));
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("Invalid authentication token."));
     }
@@ -121,5 +123,14 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("An unexpected error occurred. Please try again later."));
+    }
+
+    // ===== Helpers =====
+    private String resolveClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null || xfHeader.isBlank()) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0].trim();
     }
 }

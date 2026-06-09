@@ -43,6 +43,7 @@ public class CaptchaService {
             params.put("secret", recaptchaSecret);
             params.put("response", token);
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.postForObject(url, null, Map.class, params);
             if (response != null && Boolean.TRUE.equals(response.get("success"))) {
                 log.info("CAPTCHA verification succeeded");

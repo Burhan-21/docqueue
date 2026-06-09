@@ -90,13 +90,35 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        // Delegates to AuthenticationProvider (BCrypt verify + active check)
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail().toLowerCase().trim(),
-                        request.getPassword()));
+        String email = request.getEmail().toLowerCase().trim();
+        String attemptKey = "login:attempts:" + email;
 
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
+        // Rate Limiting on login attempts (brute force protection)
+        Integer attempts = (Integer) redisTemplate.opsForValue().get(attemptKey);
+        if (attempts != null && attempts >= 5) {
+            log.warn("Brute force login detected and locked for email: {}", email);
+            throw new BusinessException("Too many failed login attempts. Please wait 15 minutes.");
+        }
+
+        try {
+            // Delegates to AuthenticationProvider (BCrypt verify + active check)
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword()));
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            log.warn("Failed login attempt for email: {}", email);
+            // Increment failed attempts count
+            if (attempts == null) {
+                redisTemplate.opsForValue().set(attemptKey, 1, Duration.ofMinutes(15));
+            } else {
+                redisTemplate.opsForValue().increment(attemptKey);
+            }
+            throw new BusinessException("Invalid email or password");
+        }
+
+        // Successful login - clean up attempts counter
+        redisTemplate.delete(attemptKey);
+
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException("User not found"));
 
         log.info("User authenticated. Sending login OTP to: {}", user.getEmail());
@@ -193,6 +215,86 @@ public class AuthService {
             String token = bearerToken.substring(7);
             jwtService.blacklistToken(token);
             log.info("Token blacklisted for logout");
+        }
+    }
+
+    /**
+     * Initiates the password reset flow.
+     */
+    public AuthResponse forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("User not found"));
+
+        // Generate a secure reset token
+        String resetToken = java.util.UUID.randomUUID().toString();
+        
+        // Hash it for secure storage in Redis (pass-the-hash protection)
+        String hashedToken = hashString(resetToken);
+        
+        // Store in Redis with a 15-minute TTL
+        redisTemplate.opsForValue().set("pwd_reset:" + hashedToken, email, Duration.ofMinutes(15));
+
+        // In a real app, this would be a link like: https://docqueue.in/reset-password?token=...
+        // For security, we email the plain token, but only store the hash.
+        emailService.send(email, "Password Reset Request",
+                "Hello,\n\nYou requested a password reset. Use the following token to reset your password:\n\n" +
+                resetToken + "\n\n" +
+                "This token is valid for 15 minutes and can only be used once.\n" +
+                "If you did not request this, please ignore this email and your password will remain unchanged.");
+
+        return AuthResponse.builder()
+                .otpRequired(false)
+                .message("Password reset instructions have been sent to your email.")
+                .build();
+    }
+
+    /**
+     * Completes the password reset flow.
+     */
+    @Transactional
+    public AuthResponse resetPassword(ResetPasswordRequest request) {
+        String hashedToken = hashString(request.getResetToken());
+        String redisKey = "pwd_reset:" + hashedToken;
+        
+        String email = (String) redisTemplate.opsForValue().get(redisKey);
+        if (email == null) {
+            throw new BusinessException("Invalid or expired reset token. Please request a new one.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("User not found"));
+
+        // Update password securely
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Consume the token (One-Time Usage)
+        redisTemplate.delete(redisKey);
+
+        log.info("Password successfully reset for user: {}", email);
+        
+        return AuthResponse.builder()
+                .otpRequired(false)
+                .message("Password successfully reset. You can now login with your new password.")
+                .build();
+    }
+
+    private String hashString(String input) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder(2 * encodedhash.length);
+            for (byte b : encodedhash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash string", e);
         }
     }
 
