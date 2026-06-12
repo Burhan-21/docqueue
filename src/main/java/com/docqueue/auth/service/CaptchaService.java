@@ -28,10 +28,12 @@ public class CaptchaService {
      * Always returns true for local development / testing keys.
      */
     public boolean verifyToken(String token) {
-        // If no token or secret is dummy, allow bypass for local dev/testing
+        // If no token, or secret is dummy/empty/blank, or token is dummy, allow bypass for local dev/testing
         if (token == null || token.isBlank() || 
-            "6LeIxAcTAAAAAGG-vFI1TnFTxWfnC0CFU9onvZ17".equals(recaptchaSecret)) {
-            log.info("Bypassing CAPTCHA verification (local dev or dummy secret configured)");
+            recaptchaSecret == null || recaptchaSecret.isBlank() ||
+            "6LeIxAcTAAAAAGG-vFI1TnFTxWfnC0CFU9onvZ17".equals(recaptchaSecret) ||
+            "g-recaptcha-response-dummy".equals(token.trim())) {
+            log.info("Bypassing CAPTCHA verification (local dev, dummy secret, or dummy token configured)");
             return true;
         }
 

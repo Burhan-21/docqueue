@@ -29,11 +29,15 @@ public class AdminSeeder implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.beans.factory.annotation.Value("${admin.email:admin@docqueue.in}")
+    private String adminEmail;
+
+    @org.springframework.beans.factory.annotation.Value("${admin.password:Admin@1234}")
+    private String adminPassword;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        String adminEmail    = System.getenv().getOrDefault("ADMIN_EMAIL", "admin@docqueue.in");
-        String adminPassword = System.getenv().getOrDefault("ADMIN_PASSWORD", "Admin@1234");
 
         if (userRepository.existsByEmail(adminEmail)) {
             log.debug("Admin account already exists: {}, force updating password, role, and active status.", adminEmail);

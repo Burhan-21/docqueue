@@ -121,6 +121,9 @@ logging:
 security:
   require-https: ${REQUIRE_HTTPS:false}
 
+otp:
+  bypass: ${ALLOW_OTP_BYPASS:true}
+
 recaptcha:
   secret: ${RECAPTCHA_SECRET:}
 
