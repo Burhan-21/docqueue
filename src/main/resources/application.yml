@@ -122,14 +122,14 @@ security:
   require-https: ${REQUIRE_HTTPS:false}
 
 recaptcha:
-  secret: ${RECAPTCHA_SECRET}
+  secret: ${RECAPTCHA_SECRET:}
 
 # ===== Admin Seed Account =====
 admin:
   email: ${ADMIN_EMAIL:admin@docqueue.in}
-  password: ${ADMIN_PASSWORD}
+  password: ${ADMIN_PASSWORD:Admin@1234}
 
 # ===== OpenAI Integration =====
 openai:
-  api-key: ${OPENAI_API_KEY}
+  api-key: ${OPENAI_API_KEY:}
 
