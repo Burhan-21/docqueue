@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Bot, X, Send, MessageSquare, Loader2 } from 'lucide-react'
-import { aiApi } from '../../api/api'
+import { aiApi } from '../api/api'
 import toast from 'react-hot-toast'
 
 // Helper for generating unique IDs safely
