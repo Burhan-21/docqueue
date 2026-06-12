@@ -19,15 +19,16 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:15-alpine
         env:
-          MYSQL_DATABASE: docqueue
-          MYSQL_ROOT_PASSWORD: root
+          POSTGRES_DB: docqueue
+          POSTGRES_USER: docqueue
+          POSTGRES_PASSWORD: docqueue
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -h localhost"
+          --health-cmd="pg_isready -U docqueue -d docqueue"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -56,9 +57,9 @@ jobs:
     - name: Build & Run Tests
       run: ./mvnw clean verify -B
       env:
-        DB_URL: jdbc:mysql://localhost:3306/docqueue?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true
-        DB_USER: root
-        DB_PASS: root
+        DB_URL: jdbc:postgresql://localhost:5432/docqueue
+        DB_USER: docqueue
+        DB_PASS: docqueue
         REDIS_HOST: localhost
         JWT_SECRET: ${{ secrets.JWT_SECRET || 'c2VjdXJlLXN1cGVyLXNlY3JldC1rZXktZm9yLWRldi1vbmx5LW1pbi0yNTYtYml0cw==' }}
         ADMIN_EMAIL: ci-admin@docqueue.in

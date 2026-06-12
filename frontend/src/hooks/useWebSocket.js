@@ -20,8 +20,13 @@ export function useWebSocket(topic, onMessage) {
 
     const token = localStorage.getItem('accessToken')
 
+    // Derive WebSocket URL from API base (handles cross-domain in production)
+    const apiUrl = import.meta.env.VITE_API_URL || ''
+    const wsBase = apiUrl ? apiUrl.replace(/\/api\/v1\/?$/, '') : ''
+    const wsUrl = `${wsBase}/ws`
+
     const client = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
+      webSocketFactory: () => new SockJS(wsUrl),
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       onConnect: () => {

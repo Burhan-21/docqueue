@@ -5,7 +5,7 @@
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.5-6DB33F?logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://mysql.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
 [![WebSocket](https://img.shields.io/badge/WebSocket-STOMP-purple)](https://stomp.github.io/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
@@ -30,7 +30,7 @@
 | 🗄️ **Redis Caching** | Doctor availability + queue state cached with TTL |
 | 🩺 **Soft Deletes** | No hard deletes on sensitive medical entities |
 | 📝 **Audit Log** | All state changes tracked with actor, timestamp, old → new value |
-| 🐳 **Dockerized** | MySQL + Redis + App + Nginx compose stack, ready to deploy |
+| 🐳 **Dockerized** | PostgreSQL + Redis + App + Nginx compose stack, ready to deploy |
 
 ---
 
@@ -65,10 +65,10 @@
 │  └────────┘  └──────┘  └────────────┘  │
 └────────────────────────────────────────┘
                │                │
-        ┌──────▼──┐       ┌─────▼──┐
-        │  MySQL  │       │  Redis │
-        │   8.0   │       │    7   │
-        └─────────┘       └────────┘
+         ┌──────────▼──┐       ┌─────▼──┐
+        │ PostgreSQL │       │  Redis │
+        │     15     │       │    7   │
+        └────────────┘       └────────┘
 ```
 
 ---
@@ -77,7 +77,7 @@
 
 ### Prerequisites
 - Docker & Docker Compose installed
-- Ports 3000, 8080, 3306, 6379 available
+- Ports 80, 8080, 5433, 6379 available
 
 ### 1. Clone & configure
 ```bash
@@ -107,11 +107,33 @@ Password: Admin@1234   ← change via ADMIN_PASSWORD env var in production
 
 ---
 
+## ☁️ Cloud Deployment (Vercel + Render)
+
+### Backend → Render
+1. Go to [render.com](https://render.com) → **New** → **Blueprint**
+2. Connect GitHub repo → Render reads `render.yaml` and provisions:
+   - PostgreSQL database (free tier)
+   - Redis instance (free tier)
+   - Web Service (Docker, free tier)
+3. Set secret env vars: `ADMIN_PASSWORD`, `FRONTEND_URL` (your Vercel URL)
+4. Deploy → verify at `/actuator/health`
+
+### Frontend → Vercel
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. Import repo → set **Root Directory** = `frontend`
+3. Add env var: `VITE_API_URL` = `https://your-backend.onrender.com/api/v1`
+4. Deploy
+
+### Link Both
+Set `FRONTEND_URL` on Render = your Vercel URL → redeploy backend.
+
+---
+
 ## 🔧 Local Development
 
 ```bash
-# Start infrastructure only (MySQL + Redis)
-docker-compose up -d mysql redis
+# Start infrastructure only (PostgreSQL + Redis)
+docker-compose up -d postgres redis
 
 # Backend (Spring Boot)
 ./mvnw spring-boot:run
@@ -148,9 +170,9 @@ SEND      /app/queue/next            → doctor triggers "call next patient"
 
 | Variable | Description | Example |
 |---|---|---|
-| `DB_URL` | MySQL JDBC connection | `jdbc:mysql://localhost:3306/docqueue` |
-| `DB_USER` | MySQL username | `docqueue` |
-| `DB_PASS` | MySQL password | `secret` |
+| `DB_URL` | PostgreSQL JDBC connection | `jdbc:postgresql://localhost:5432/docqueue` |
+| `DB_USER` | PostgreSQL username | `docqueue` |
+| `DB_PASS` | PostgreSQL password | `secret` |
 | `REDIS_HOST` | Redis hostname | `localhost` |
 | `JWT_SECRET` | Base64-encoded secret (≥256-bit) | `base64encodedstring` |
 | `ADMIN_EMAIL` | Seeded admin email | `admin@docqueue.in` |
@@ -201,7 +223,7 @@ SEND      /app/queue/next            → doctor triggers "call next patient"
 | **Language** | Java 17 |
 | **Framework** | Spring Boot 3.2.5 |
 | **Security** | Spring Security + JWT (jjwt 0.12.5) |
-| **Database** | MySQL 8.0 + Spring Data JPA + Hibernate |
+| **Database** | PostgreSQL 15 + Spring Data JPA + Hibernate |
 | **Migrations** | Flyway |
 | **Cache** | Redis 7 + Spring Cache |
 | **Real-Time** | WebSocket + STOMP + SockJS |
@@ -211,7 +233,7 @@ SEND      /app/queue/next            → doctor triggers "call next patient"
 | **Frontend** | React 18 + Vite + Tailwind CSS |
 | **State** | TanStack Query v5 |
 | **Charts** | Recharts |
-| **Deployment** | Docker + Nginx + VPS |
+| **Deployment** | Vercel (frontend) + Render (backend) + Docker |
 | **CI/CD** | GitHub Actions |
 
 ---

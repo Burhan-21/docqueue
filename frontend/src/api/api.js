@@ -1,10 +1,12 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: 15000,
 })
 
 // ===== Request Interceptor: attach JWT =====
@@ -33,7 +35,7 @@ api.interceptors.response.use(
       if (refreshToken && !err.config._retry) {
         err.config._retry = true
         try {
-          const { data } = await axios.post('/api/v1/auth/refresh', { refreshToken })
+          const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken })
           const newToken = data.data.accessToken
           localStorage.setItem('accessToken', newToken)
           err.config.headers.Authorization = `Bearer ${newToken}`
